@@ -1,0 +1,990 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full bg-slate-950 text-slate-100">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Customer Service Live Chat Routing System - Queue Data Structure</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+  <!-- Google Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace'],
+          },
+          colors: {
+            brand: {
+              indigo: '#6366f1',
+              emerald: '#10b981',
+              amber: '#f59e0b',
+              rose: '#f43f5e',
+              cyan: '#06b6d4',
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    /* Glassmorphism Panels */
+    .glass-panel {
+      background: rgba(15, 23, 42, 0.8);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+    
+    .glass-card {
+      background: rgba(30, 41, 59, 0.6);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    .glass-card:hover {
+      background: rgba(51, 65, 85, 0.7);
+      border-color: rgba(99, 102, 241, 0.3);
+    }
+
+    /* Custom Scrollbars */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: rgba(15, 23, 42, 0.6);
+    }
+    ::-webkit-scrollbar-thumb {
+      background: rgba(99, 102, 241, 0.4);
+      border-radius: 9999px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: rgba(99, 102, 241, 0.7);
+    }
+
+    /* Animations */
+    @keyframes pulseGlow {
+      0%, 100% { opacity: 0.4; }
+      50% { opacity: 0.8; }
+    }
+    .animate-pulse-glow {
+      animation: pulseGlow 2.5s infinite ease-in-out;
+    }
+
+    /* Chat bubble tail */
+    .chat-bubble-user::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      right: -6px;
+      width: 0;
+      height: 0;
+      border: 6px solid transparent;
+      border-left-color: #6366f1;
+      border-bottom: 0;
+      margin-bottom: 8px;
+    }
+    .chat-bubble-agent::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: -6px;
+      width: 0;
+      height: 0;
+      border: 6px solid transparent;
+      border-right-color: #334155;
+      border-bottom: 0;
+      margin-bottom: 8px;
+    }
+  </style>
+</head>
+<body class="h-full flex flex-col font-sans overflow-x-hidden antialiased bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-slate-900 via-indigo-950/20 to-slate-950 text-slate-100">
+
+  <!-- TOP HEADER / NAVBAR -->
+  <header class="glass-panel sticky top-0 z-30 px-6 py-4 flex items-center justify-between border-b border-white/10">
+    <div class="flex items-center gap-3">
+      <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 to-emerald-500 flex items-center justify-center text-white shadow-lg shadow-indigo-500/30">
+        <i class="fa-solid fa-headset text-lg"></i>
+      </div>
+      <div>
+        <h1 class="text-xl font-bold tracking-tight bg-gradient-to-r from-white via-slate-200 to-indigo-300 bg-clip-text text-transparent">
+          OmniDesk Live Chat <span class="text-xs font-mono px-2 py-0.5 rounded-md bg-indigo-500/20 border border-indigo-500/30 text-indigo-300 ml-2">FIFO Queue Router</span>
+        </h1>
+        <p class="text-xs text-slate-400">Data Structure Real-World Customer Support Routing Engine</p>
+      </div>
+    </div>
+
+    <div class="flex items-center gap-3">
+      <button id="btn-open-ds-modal" class="px-4 py-2 rounded-xl bg-indigo-600/30 hover:bg-indigo-600/50 border border-indigo-500/40 text-indigo-200 text-sm font-medium transition flex items-center gap-2 shadow-lg shadow-indigo-900/20">
+        <i class="fa-solid fa-network-wired text-brand-emerald"></i>
+        <span>Queue Data Structure Inspector</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- METRICS OVERVIEW BAR -->
+  <section class="max-w-7xl w-full mx-auto px-4 sm:px-6 pt-6 grid grid-cols-2 md:grid-cols-4 gap-4">
+    <div class="glass-panel p-4 rounded-xl flex items-center gap-4">
+      <div class="w-11 h-11 rounded-lg bg-indigo-500/20 border border-indigo-500/30 flex items-center justify-center text-indigo-400">
+        <i class="fa-solid fa-users text-lg"></i>
+      </div>
+      <div>
+        <p class="text-xs text-slate-400 font-medium">Waiting In Queue</p>
+        <h3 id="stat-waiting-count" class="text-2xl font-bold text-white font-mono">0</h3>
+      </div>
+    </div>
+
+    <div class="glass-panel p-4 rounded-xl flex items-center gap-4">
+      <div class="w-11 h-11 rounded-lg bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
+        <i class="fa-solid fa-user-check text-lg"></i>
+      </div>
+      <div>
+        <p class="text-xs text-slate-400 font-medium">Active Chats</p>
+        <h3 id="stat-active-count" class="text-2xl font-bold text-white font-mono">0</h3>
+      </div>
+    </div>
+
+    <div class="glass-panel p-4 rounded-xl flex items-center gap-4">
+      <div class="w-11 h-11 rounded-lg bg-amber-500/20 border border-amber-500/30 flex items-center justify-center text-amber-400">
+        <i class="fa-solid fa-clock text-lg"></i>
+      </div>
+      <div>
+        <p class="text-xs text-slate-400 font-medium">Est. Wait Time</p>
+        <h3 id="stat-est-wait" class="text-2xl font-bold text-white font-mono">0m</h3>
+      </div>
+    </div>
+
+    <div class="glass-panel p-4 rounded-xl flex items-center gap-4">
+      <div class="w-11 h-11 rounded-lg bg-cyan-500/20 border border-cyan-500/30 flex items-center justify-center text-cyan-400">
+        <i class="fa-solid fa-circle-check text-lg"></i>
+      </div>
+      <div>
+        <p class="text-xs text-slate-400 font-medium">Total Resolved Today</p>
+        <h3 id="stat-resolved-count" class="text-2xl font-bold text-white font-mono">0</h3>
+      </div>
+    </div>
+  </section>
+
+  <!-- MAIN APP GRID -->
+  <main class="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+
+    <!-- LEFT COLUMN: TICKET SUBMISSION FORM & REAL-TIME QUEUE (4 COLS) -->
+    <section class="lg:col-span-4 flex flex-col gap-6">
+      
+      <!-- SUBMIT CUSTOMER TICKET FORM -->
+      <div class="glass-panel rounded-2xl p-5 shadow-xl border border-indigo-500/20 flex flex-col gap-4">
+        <div class="flex items-center gap-2 border-b border-white/5 pb-3">
+          <i class="fa-solid fa-ticket text-brand-indigo text-lg"></i>
+          <h2 class="font-bold text-slate-200 text-base">New Support Request</h2>
+        </div>
+
+        <form id="submit-ticket-form" class="flex flex-col gap-3">
+          <div>
+            <label class="block text-xs font-medium text-slate-300 mb-1">Customer Name</label>
+            <input type="text" id="input-customer-name" required placeholder="e.g. Sarah Jenkins" class="w-full bg-slate-900/80 border border-slate-700/60 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-brand-indigo text-slate-200 placeholder-slate-500">
+          </div>
+
+          <div>
+            <label class="block text-xs font-medium text-slate-300 mb-1">Support Category</label>
+            <select id="input-category" class="w-full bg-slate-900/80 border border-slate-700/60 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-brand-indigo text-slate-200">
+              <option value="Technical Support">Technical Support</option>
+              <option value="Billing & Invoices">Billing & Invoices</option>
+              <option value="General Inquiry">General Inquiry</option>
+              <option value="Emergency Priority">Emergency Priority</option>
+            </select>
+          </div>
+
+          <div>
+            <label class="block text-xs font-medium text-slate-300 mb-1">Issue Description</label>
+            <textarea id="input-issue" required rows="2" placeholder="Briefly describe what you need help with..." class="w-full bg-slate-900/80 border border-slate-700/60 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-brand-indigo text-slate-200 placeholder-slate-500 resize-none"></textarea>
+          </div>
+
+          <div class="flex items-center justify-between pt-1">
+            <button type="button" id="btn-auto-simulate" class="text-xs text-indigo-400 hover:text-indigo-300 font-medium transition flex items-center gap-1">
+              <i class="fa-solid fa-wand-magic-sparkles"></i> Auto-Generate
+            </button>
+
+            <button type="submit" class="px-4 py-2.5 bg-gradient-to-r from-brand-indigo to-indigo-600 hover:from-indigo-600 hover:to-brand-indigo text-white font-medium text-xs rounded-xl transition shadow-md shadow-indigo-900/30 flex items-center gap-2">
+              <i class="fa-solid fa-right-to-bracket"></i>
+              <span>Enqueue Ticket</span>
+            </button>
+          </div>
+        </form>
+      </div>
+
+      <!-- REAL-TIME CUSTOMER QUEUE DISPLAY -->
+      <div class="glass-panel rounded-2xl p-5 shadow-xl flex flex-col gap-4 border border-white/10">
+        <div class="flex items-center justify-between border-b border-white/5 pb-3">
+          <div class="flex items-center gap-2">
+            <i class="fa-solid fa-list-ol text-brand-cyan text-lg"></i>
+            <h2 class="font-bold text-slate-200 text-base">Waiting Room Queue</h2>
+          </div>
+          <span id="queue-size-badge" class="text-xs font-mono text-cyan-300 bg-cyan-950/60 px-2.5 py-1 rounded-full border border-cyan-500/30">0 in line</span>
+        </div>
+
+        <p class="text-xs text-slate-400 leading-relaxed">
+          Tickets exit sequentially from <code class="text-emerald-400 font-mono">Position #1</code> as agents become available (<code class="text-indigo-300 font-mono">dequeue</code>).
+        </p>
+
+        <!-- Queue Cards Container -->
+        <div id="queue-list-container" class="flex flex-col gap-2.5 min-h-[200px] max-h-[380px] overflow-y-auto pr-1">
+          <!-- Dynamically Rendered -->
+        </div>
+
+        <!-- System Serialization Guardrail Notice -->
+        <div class="bg-indigo-950/30 border border-indigo-500/20 rounded-xl p-3 text-[11px] text-indigo-200/80 leading-relaxed flex items-start gap-2">
+          <i class="fa-solid fa-shield-halved text-brand-emerald text-xs mt-0.5"></i>
+          <p>
+            <strong>Fairness Guarantee:</strong> Requests are processed in strict arrival order. First customer in line is guaranteed to be served next.
+          </p>
+        </div>
+
+      </div>
+
+    </section>
+
+    <!-- MIDDLE COLUMN: SUPPORT AGENT DESKS (4 COLS) -->
+    <section class="lg:col-span-4 flex flex-col gap-6">
+      
+      <div class="glass-panel rounded-2xl p-5 shadow-xl border border-white/10 flex flex-col gap-4">
+        <div class="flex items-center justify-between border-b border-white/5 pb-3">
+          <div class="flex items-center gap-2">
+            <i class="fa-solid fa-user-gear text-brand-emerald text-lg"></i>
+            <h2 class="font-bold text-slate-200 text-base">Support Agent Desks</h2>
+          </div>
+          <span class="text-xs font-mono text-slate-400">3 Desks Active</span>
+        </div>
+
+        <p class="text-xs text-slate-400 leading-relaxed">
+          Click <strong class="text-emerald-400">"Take Next Customer"</strong> to call the customer at the front of the queue (`dequeue`).
+        </p>
+
+        <!-- AGENTS CONTAINER -->
+        <div id="agents-container" class="flex flex-col gap-4">
+          <!-- Rendered Dynamically -->
+        </div>
+      </div>
+
+    </section>
+
+    <!-- RIGHT COLUMN: ACTIVE SIMULATED CHAT WIDGET (4 COLS) -->
+    <section class="lg:col-span-4 flex flex-col gap-6">
+      
+      <div class="glass-panel rounded-2xl p-5 shadow-xl border border-indigo-500/30 flex flex-col h-[650px] relative">
+        
+        <!-- Chat Header -->
+        <div id="chat-header" class="flex items-center justify-between border-b border-white/10 pb-3 mb-3">
+          <div class="flex items-center gap-3">
+            <div class="relative">
+              <div id="chat-avatar" class="w-10 h-10 rounded-full bg-slate-800 border border-white/10 flex items-center justify-center font-bold text-xs text-slate-400">
+                ?
+              </div>
+              <span id="chat-status-dot" class="w-3 h-3 rounded-full bg-slate-600 border-2 border-slate-900 absolute bottom-0 right-0"></span>
+            </div>
+            <div>
+              <h3 id="chat-customer-name" class="font-bold text-sm text-white">No Active Chat Session</h3>
+              <p id="chat-session-meta" class="text-[11px] text-slate-400">Select an agent desk to start serving</p>
+            </div>
+          </div>
+
+          <button id="btn-resolve-chat" disabled class="px-3 py-1.5 rounded-lg bg-emerald-600/30 hover:bg-emerald-600 border border-emerald-500/40 text-emerald-200 hover:text-white text-xs font-semibold transition disabled:opacity-30 disabled:cursor-not-allowed flex items-center gap-1.5">
+            <i class="fa-solid fa-circle-check text-xs"></i> Resolve Chat
+          </button>
+        </div>
+
+        <!-- Chat Messages Scroll Area -->
+        <div id="chat-messages" class="flex-1 overflow-y-auto pr-1 flex flex-col gap-3 py-2">
+          <div class="m-auto text-center p-6 text-slate-500 text-xs flex flex-col items-center gap-2">
+            <i class="fa-solid fa-comments-dollar text-3xl text-slate-700"></i>
+            <p>No active customer connection.</p>
+            <p class="text-[11px] text-slate-600">When an available agent dequeues a ticket, the chat session will initiate here automatically.</p>
+          </div>
+        </div>
+
+        <!-- Agent Quick Replies -->
+        <div id="chat-quick-replies" class="py-2 border-t border-white/5 flex gap-1.5 overflow-x-auto hidden">
+          <button onclick="sendQuickReply('Hello! How can I assist you today?')" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 border border-white/10 text-[10px] text-slate-300 transition whitespace-nowrap">
+            "Hello! How can I assist?"
+          </button>
+          <button onclick="sendQuickReply('I am reviewing your account details now.')" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 border border-white/10 text-[10px] text-slate-300 transition whitespace-nowrap">
+            "Reviewing account..."
+          </button>
+          <button onclick="sendQuickReply('I have applied the fix to your account!')" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 border border-white/10 text-[10px] text-slate-300 transition whitespace-nowrap">
+            "Issue resolved!"
+          </button>
+        </div>
+
+        <!-- Chat Input Form -->
+        <form id="chat-input-form" class="mt-2 flex gap-2 border-t border-white/10 pt-3">
+          <input type="text" id="chat-input-field" disabled placeholder="Type response to customer..." class="flex-1 bg-slate-900/90 border border-slate-700/60 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-brand-indigo text-slate-200 placeholder-slate-500 disabled:opacity-40">
+          <button type="submit" id="chat-btn-send" disabled class="px-4 py-2 bg-brand-indigo hover:bg-indigo-600 text-white rounded-xl text-xs font-semibold transition disabled:opacity-40 disabled:cursor-not-allowed">
+            <i class="fa-solid fa-paper-plane"></i>
+          </button>
+        </form>
+
+      </div>
+
+    </section>
+
+  </main>
+
+  <!-- QUEUE DATA STRUCTURE INSPECTOR MODAL -->
+  <div id="ds-modal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden">
+    <div class="glass-panel w-full max-w-3xl rounded-2xl border border-indigo-500/30 shadow-2xl p-6 flex flex-col gap-5 max-h-[90vh] overflow-y-auto">
+      
+      <!-- Modal Header -->
+      <div class="flex items-center justify-between border-b border-white/10 pb-4">
+        <div class="flex items-center gap-3">
+          <div class="w-9 h-9 rounded-xl bg-brand-indigo/20 border border-brand-indigo/40 flex items-center justify-center text-brand-indigo">
+            <i class="fa-solid fa-network-wired text-lg"></i>
+          </div>
+          <div>
+            <h3 class="font-bold text-white text-lg">Queue Data Structure Mechanics</h3>
+            <p class="text-xs text-slate-400">First-In, First-Out (FIFO) Algorithmic Guarantees</p>
+          </div>
+        </div>
+        <button id="btn-close-ds-modal" class="w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white flex items-center justify-center transition">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <!-- Live Memory Queue Buffer Inspector -->
+      <div class="bg-slate-950 p-4 rounded-xl border border-white/10 flex flex-col gap-2">
+        <div class="flex items-center justify-between text-xs font-mono text-slate-400">
+          <span>Internal Queue Buffer Memory Array:</span>
+          <span class="text-brand-emerald" id="modal-buffer-size">Size: 0</span>
+        </div>
+        <div id="modal-buffer-visualizer" class="flex items-center gap-2 overflow-x-auto py-3 px-1 min-h-[64px]">
+          <!-- Array items visualization rendered here -->
+        </div>
+        <div class="flex justify-between text-[10px] font-mono text-slate-500 px-1">
+          <span>▲ FRONT (index 0 - peek / dequeue)</span>
+          <span>REAR (index length-1 - enqueue) ▲</span>
+        </div>
+      </div>
+
+      <!-- Core Queue Methods Code Specs -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        
+        <!-- Enqueue -->
+        <div class="bg-slate-900/80 rounded-xl p-4 border border-indigo-500/20 flex flex-col gap-2">
+          <div class="flex items-center gap-2 text-brand-indigo font-mono font-bold text-sm">
+            <i class="fa-solid fa-arrow-down-to-line"></i> enqueue(ticket)
+          </div>
+          <p class="text-xs text-slate-300 leading-relaxed">
+            Adds a new customer ticket to the <strong>REAR</strong> of the queue. Executes in $O(1)$ constant time using JavaScript's <code class="text-indigo-300 bg-indigo-950 px-1 py-0.5 rounded">Array.prototype.push()</code>.
+          </p>
+          <pre class="bg-slate-950 p-2.5 rounded-lg text-[11px] font-mono text-indigo-300 overflow-x-auto border border-white/5">enqueue(ticket) {
+  this.buffer.push(ticket);
+}</pre>
+        </div>
+
+        <!-- Dequeue -->
+        <div class="bg-slate-900/80 rounded-xl p-4 border border-emerald-500/20 flex flex-col gap-2">
+          <div class="flex items-center gap-2 text-brand-emerald font-mono font-bold text-sm">
+            <i class="fa-solid fa-arrow-up-from-line"></i> dequeue()
+          </div>
+          <p class="text-xs text-slate-300 leading-relaxed">
+            Removes and returns the customer ticket at the <strong>FRONT</strong> (index 0). Executes via <code class="text-emerald-300 bg-emerald-950 px-1 py-0.5 rounded">Array.prototype.shift()</code>.
+          </p>
+          <pre class="bg-slate-950 p-2.5 rounded-lg text-[11px] font-mono text-emerald-300 overflow-x-auto border border-white/5">dequeue() {
+  if (this.isEmpty()) return null;
+  return this.buffer.shift();
+}</pre>
+        </div>
+
+      </div>
+
+      <!-- Real World Significance -->
+      <div class="bg-slate-900/50 rounded-xl p-4 border border-white/5 text-xs text-slate-300 leading-relaxed flex flex-col gap-2">
+        <h4 class="font-bold text-white text-sm flex items-center gap-2">
+          <i class="fa-solid fa-lightbulb text-amber-400"></i> Why are Queues critical for Live Chat Routing?
+        </h4>
+        <ul class="list-disc list-inside space-y-1 text-slate-300">
+          <li><strong>Prevents Starvation:</strong> Ensures no customer is indefinitely skipped or forced to wait forever while newer requests arrive.</li>
+          <li><strong>Graceful Burst Handling:</strong> When 50 customers submit tickets simultaneously, the queue acts as an asynchronous buffer holding requests safely until agent capacity frees up.</li>
+          <li><strong>Predictable Wait Times:</strong> Since position in queue strictly moves forward, estimated wait times can be calculated reliably as: $(Position \times Average Chat Duration) \div Active Agents$.</li>
+        </ul>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- AUDIO SYNTHESIS EFFECTS FOR SYSTEM EVENTS -->
+  <script>
+    /**
+     * Web Audio API sound generator for system feedback cues
+     */
+    class SystemAudioCues {
+      constructor() {
+        this.ctx = null;
+      }
+
+      init() {
+        if (!this.ctx) {
+          const AudioContext = window.AudioContext || window.webkitAudioContext;
+          this.ctx = new AudioContext();
+        }
+      }
+
+      playEnqueue() {
+        this.init();
+        if (this.ctx.state === 'suspended') this.ctx.resume();
+        
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(350, this.ctx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(700, this.ctx.currentTime + 0.15);
+        
+        gain.gain.setValueAtTime(0.15, this.ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.15);
+
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start();
+        osc.stop(this.ctx.currentTime + 0.15);
+      }
+
+      playConnect() {
+        this.init();
+        if (this.ctx.state === 'suspended') this.ctx.resume();
+
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(523.25, this.ctx.currentTime); // C5
+        osc.frequency.setValueAtTime(659.25, this.ctx.currentTime + 0.1); // E5
+
+        gain.gain.setValueAtTime(0.2, this.ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.25);
+
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start();
+        osc.stop(this.ctx.currentTime + 0.25);
+      }
+    }
+
+    const soundEffects = new SystemAudioCues();
+  </script>
+
+  <!-- MAIN JAVASCRIPT APPLICATION LOGIC -->
+  <script>
+    /**
+     * =========================================================================
+     * 1. EXPLICIT QUEUE DATA STRUCTURE CLASS
+     * First-In, First-Out (FIFO) Implementation for Support Ticket Routing
+     * =========================================================================
+     */
+    class CustomerQueue {
+      constructor() {
+        // Internal storage array for queue elements
+        this.buffer = [];
+      }
+
+      /**
+       * Adds a new customer ticket to the REAR of the queue.
+       * @param {Object} ticket - The customer support ticket object.
+       */
+      enqueue(ticket) {
+        this.buffer.push(ticket);
+      }
+
+      /**
+       * Removes and returns the customer ticket at the FRONT of the queue.
+       * Returns null if the queue is empty.
+       * @returns {Object|null}
+       */
+      dequeue() {
+        if (this.isEmpty()) {
+          return null;
+        }
+        // shift() extracts index 0 and re-indexes all subsequent elements
+        return this.buffer.shift();
+      }
+
+      /**
+       * Returns the customer ticket at the FRONT of the queue without removing it.
+       * @returns {Object|null}
+       */
+      peek() {
+        if (this.isEmpty()) {
+          return null;
+        }
+        return this.buffer[0];
+      }
+
+      /**
+       * Checks whether the queue contains zero tickets.
+       * @returns {boolean}
+       */
+      isEmpty() {
+        return this.buffer.length === 0;
+      }
+
+      /**
+       * Returns the total count of waiting tickets in the queue.
+       * @returns {number}
+       */
+      size() {
+        return this.buffer.length;
+      }
+
+      /**
+       * Returns a shallow copy of the internal buffer for UI rendering and visualizers.
+       * @returns {Array}
+       */
+      getBuffer() {
+        return [...this.buffer];
+      }
+    }
+
+    /**
+     * =========================================================================
+     * 2. APPLICATION STATE & INITIAL DATA
+     * =========================================================================
+     */
+
+    // Instantiate Main Customer Queue Data Structure
+    const ticketQueue = new CustomerQueue();
+
+    // Support Agents State
+    let agents = [
+      { id: 'agent-1', name: 'Agent Lilian', role: 'Technical Support', status: 'Available', currentTicket: null },
+      { id: 'agent-2', name: 'Agent Kingsley', role: 'Billing Specialist', status: 'Available', currentTicket: null },
+      { id: 'agent-3', name: 'Agent Michael', role: 'Tier 1 Generalist', status: 'Available', currentTicket: null },
+    ];
+
+    // Global App Statistics
+    let activeChatSession = null; // { agentId, ticket, messages: [] }
+    let totalResolvedToday = 0;
+    let ticketCounter = 101;
+
+    // Sample automated random ticket generator data
+    const sampleNames = ['Rakiiba', 'Niimhart', 'Morgan', 'Solomon', 'Bismark\'Jane', 'Dorothy'];
+    const sampleCategories = [
+      { cat: 'Technical Support', issue: 'App keeps freezing on launch screen' },
+      { cat: 'Billing & Invoices', issue: 'Duplicate charge shown on monthly statement' },
+      { cat: 'General Inquiry', issue: 'Question regarding enterprise tier subscription features' },
+      { cat: 'Emergency Priority', issue: 'Production database connectivity lost' }
+    ];
+
+    /**
+     * =========================================================================
+     * 3. UI RENDERING & COMPONENT FUNCTIONS
+     * =========================================================================
+     */
+
+    // Category Color Helpers
+    function getCategoryBadgeClass(category) {
+      switch(category) {
+        case 'Emergency Priority':
+          return 'bg-rose-950/60 border-rose-500/30 text-rose-300';
+        case 'Technical Support':
+          return 'bg-indigo-950/60 border-indigo-500/30 text-indigo-300';
+        case 'Billing & Invoices':
+          return 'bg-amber-950/60 border-amber-500/30 text-amber-300';
+        default:
+          return 'bg-cyan-950/60 border-cyan-500/30 text-cyan-300';
+      }
+    }
+
+    // Update Top Stat Metrics
+    function updateMetrics() {
+      const waitingCount = ticketQueue.size();
+      const activeCount = agents.filter(a => a.status === 'Busy').length;
+      
+      // Estimated wait calculation (Average 2 minutes per chat per active agent)
+      const activeAgentCount = Math.max(1, agents.filter(a => a.status !== 'Offline').length);
+      const estMinutes = Math.ceil((waitingCount * 2) / activeAgentCount);
+
+      document.getElementById('stat-waiting-count').textContent = waitingCount;
+      document.getElementById('stat-active-count').textContent = activeCount;
+      document.getElementById('stat-est-wait').textContent = `${estMinutes}m`;
+      document.getElementById('stat-resolved-count').textContent = totalResolvedToday;
+
+      document.getElementById('queue-size-badge').textContent = `${waitingCount} in line`;
+    }
+
+    // Render Waiting Room Queue Display
+    function renderQueue() {
+      const container = document.getElementById('queue-list-container');
+      const buffer = ticketQueue.getBuffer();
+
+      updateMetrics();
+
+      if (buffer.length === 0) {
+        container.innerHTML = `
+          <div class="flex flex-col items-center justify-center p-8 text-center border-2 border-dashed border-slate-800 rounded-xl">
+            <i class="fa-solid fa-inbox text-slate-600 text-3xl mb-2"></i>
+            <p class="text-xs font-medium text-slate-400">Queue is empty</p>
+            <p class="text-[11px] text-slate-500 mt-1">Submit a ticket to enqueue customers!</p>
+          </div>
+        `;
+        renderDSModalBuffer();
+        return;
+      }
+
+      container.innerHTML = buffer.map((ticket, index) => {
+        const isFront = index === 0;
+        return `
+          <div class="glass-card p-3 rounded-xl flex items-center justify-between transition duration-200 ${isFront ? 'border-brand-emerald/40 bg-emerald-950/20' : ''}">
+            <div class="flex items-center gap-3 overflow-hidden">
+              <span class="w-6 h-6 rounded-full ${isFront ? 'bg-brand-emerald text-slate-950 font-bold' : 'bg-slate-800 text-slate-400'} text-xs font-mono flex items-center justify-center flex-shrink-0">
+                #${index + 1}
+              </span>
+              <div class="truncate">
+                <div class="flex items-center gap-2">
+                  <h4 class="text-xs font-bold text-white truncate">${ticket.customerName}</h4>
+                  <span class="text-[9px] font-mono px-2 py-0.5 rounded-md border ${getCategoryBadgeClass(ticket.category)}">
+                    ${ticket.category}
+                  </span>
+                </div>
+                <p class="text-[11px] text-slate-400 truncate mt-0.5">${ticket.issue}</p>
+              </div>
+            </div>
+            ${isFront ? `
+              <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-brand-emerald/20 border border-brand-emerald/30 text-brand-emerald font-bold flex-shrink-0">
+                FRONT (NEXT)
+              </span>
+            ` : ''}
+          </div>
+        `;
+      }).join('');
+
+      renderDSModalBuffer();
+    }
+
+    // Render Support Agent Desks
+    function renderAgents() {
+      const container = document.getElementById('agents-container');
+
+      container.innerHTML = agents.map(agent => {
+        const isBusy = agent.status === 'Busy';
+        const isOffline = agent.status === 'Offline';
+
+        let statusBadgeClass = 'bg-emerald-950/60 text-emerald-400 border-emerald-500/30';
+        if (isBusy) statusBadgeClass = 'bg-amber-950/60 text-amber-400 border-amber-500/30';
+        if (isOffline) statusBadgeClass = 'bg-slate-800 text-slate-500 border-slate-700';
+
+        return `
+          <div class="glass-card p-4 rounded-xl flex flex-col gap-3 border ${isBusy ? 'border-amber-500/30' : 'border-white/5'}">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-3">
+                <div class="w-9 h-9 rounded-full ${isBusy ? 'bg-amber-500/20 text-amber-400' : 'bg-emerald-500/20 text-emerald-400'} flex items-center justify-center font-bold text-xs border border-white/10">
+                  <i class="fa-solid fa-user-tie"></i>
+                </div>
+                <div>
+                  <h4 class="text-xs font-bold text-white">${agent.name}</h4>
+                  <p class="text-[11px] text-slate-400">${agent.role}</p>
+                </div>
+              </div>
+              <span class="text-[10px] font-mono px-2.5 py-1 rounded-full border ${statusBadgeClass}">
+                ${agent.status}
+              </span>
+            </div>
+
+            <!-- Current Ticket Status inside Agent Desk -->
+            ${isBusy && agent.currentTicket ? `
+              <div class="bg-slate-900/80 p-2.5 rounded-lg border border-white/5 flex items-center justify-between text-xs">
+                <div class="truncate">
+                  <p class="text-[10px] text-slate-400">Serving Customer:</p>
+                  <p class="font-bold text-slate-200 truncate">${agent.currentTicket.customerName}</p>
+                </div>
+                <button onclick="focusChatSession('${agent.id}')" class="px-2.5 py-1 rounded bg-indigo-600/30 hover:bg-indigo-600 border border-indigo-500/40 text-indigo-200 hover:text-white text-[11px] transition">
+                  View Chat
+                </button>
+              </div>
+            ` : ''}
+
+            <!-- Take Next Customer Trigger (DEQUEUE) -->
+            <button 
+              onclick="handleAgentTakeNext('${agent.id}')" 
+              ${isBusy || ticketQueue.isEmpty() ? 'disabled' : ''} 
+              class="w-full py-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-teal-600 hover:to-emerald-600 text-white font-semibold text-xs rounded-lg transition disabled:opacity-30 disabled:cursor-not-allowed shadow-md flex items-center justify-center gap-2">
+              <i class="fa-solid fa-arrow-right-to-bracket"></i>
+              <span>Take Next Customer (Dequeue)</span>
+            </button>
+          </div>
+        `;
+      }).join('');
+    }
+
+    // Render Data Structure Buffer Visualizer inside Modal
+    function renderDSModalBuffer() {
+      const visualizer = document.getElementById('modal-buffer-visualizer');
+      const buffer = ticketQueue.getBuffer();
+      document.getElementById('modal-buffer-size').textContent = `Size: ${buffer.length}`;
+
+      if (buffer.length === 0) {
+        visualizer.innerHTML = `<span class="text-xs text-slate-500 italic">Queue buffer is empty [ ]</span>`;
+        return;
+      }
+
+      visualizer.innerHTML = buffer.map((ticket, idx) => `
+        <div class="flex flex-col items-center flex-shrink-0">
+          <div class="px-3 py-2 rounded-lg ${idx === 0 ? 'bg-brand-emerald/20 border-brand-emerald text-brand-emerald' : 'bg-slate-800 border-slate-700 text-slate-300'} border text-xs font-mono flex items-center gap-2">
+            <span class="font-bold">${idx}:</span>
+            <span class="truncate max-w-[100px]">${ticket.customerName}</span>
+          </div>
+        </div>
+      `).join('<i class="fa-solid fa-arrow-right text-xs text-slate-600"></i>');
+    }
+
+    /**
+     * =========================================================================
+     * 4. LIVE SIMULATED CHAT ENGINE
+     * =========================================================================
+     */
+
+    // Focus / Open Active Chat Session for an Agent
+    function focusChatSession(agentId) {
+      const agent = agents.find(a => a.id === agentId);
+      if (!agent || !agent.currentTicket) return;
+
+      if (!activeChatSession || activeChatSession.agentId !== agentId) {
+        activeChatSession = {
+          agentId: agent.id,
+          agentName: agent.name,
+          ticket: agent.currentTicket,
+          messages: [
+            { sender: 'system', text: `Chat session established between ${agent.name} and ${agent.currentTicket.customerName}.` },
+            { sender: 'customer', text: `Hi ${agent.name}! My issue is: ${agent.currentTicket.issue}` }
+          ]
+        };
+      }
+
+      renderChatUI();
+    }
+
+    // Render Chat Messages and Controls
+    function renderChatUI() {
+      const headerName = document.getElementById('chat-customer-name');
+      const headerMeta = document.getElementById('chat-session-meta');
+      const avatar = document.getElementById('chat-avatar');
+      const statusDot = document.getElementById('chat-status-dot');
+      const messagesBox = document.getElementById('chat-messages');
+      const btnResolve = document.getElementById('btn-resolve-chat');
+      const inputField = document.getElementById('chat-input-field');
+      const btnSend = document.getElementById('chat-btn-send');
+      const quickReplies = document.getElementById('chat-quick-replies');
+
+      if (!activeChatSession) {
+        headerName.textContent = "No Active Chat Session";
+        headerMeta.textContent = "Select an agent desk to start serving";
+        avatar.textContent = "?";
+        statusDot.className = "w-3 h-3 rounded-full bg-slate-600 border-2 border-slate-900 absolute bottom-0 right-0";
+
+        messagesBox.innerHTML = `
+          <div class="m-auto text-center p-6 text-slate-500 text-xs flex flex-col items-center gap-2">
+            <i class="fa-solid fa-comments-dollar text-3xl text-slate-700"></i>
+            <p>No active customer connection.</p>
+            <p class="text-[11px] text-slate-600">When an available agent dequeues a ticket, the chat session will initiate here automatically.</p>
+          </div>
+        `;
+
+        btnResolve.disabled = true;
+        inputField.disabled = true;
+        btnSend.disabled = true;
+        quickReplies.classList.add('hidden');
+        return;
+      }
+
+      const { ticket, agentName, messages } = activeChatSession;
+
+      headerName.textContent = ticket.customerName;
+      headerMeta.textContent = `Assigned to ${agentName} • ${ticket.category}`;
+      avatar.textContent = ticket.customerName.charAt(0);
+      statusDot.className = "w-3 h-3 rounded-full bg-emerald-500 border-2 border-slate-900 absolute bottom-0 right-0";
+
+      btnResolve.disabled = false;
+      inputField.disabled = false;
+      btnSend.disabled = false;
+      quickReplies.classList.remove('hidden');
+
+      // Render Messages
+      messagesBox.innerHTML = messages.map(msg => {
+        if (msg.sender === 'system') {
+          return `
+            <div class="text-center my-1">
+              <span class="text-[10px] font-mono px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 border border-white/5">
+                ${msg.text}
+              </span>
+            </div>
+          `;
+        }
+
+        const isUser = msg.sender === 'agent';
+        return `
+          <div class="flex flex-col ${isUser ? 'items-end' : 'items-start'} my-1">
+            <span class="text-[10px] text-slate-500 mb-0.5 px-1">${isUser ? agentName : ticket.customerName}</span>
+            <div class="relative max-w-[80%] rounded-2xl px-3.5 py-2 text-xs leading-relaxed ${isUser ? 'bg-brand-indigo text-white chat-bubble-user' : 'bg-slate-800 text-slate-200 border border-white/10 chat-bubble-agent'}">
+              ${msg.text}
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      // Auto scroll to bottom of chat
+      messagesBox.scrollTop = messagesBox.scrollHeight;
+    }
+
+    // Send Quick Reply Message from Agent
+    function sendQuickReply(text) {
+      if (!activeChatSession) return;
+      activeChatSession.messages.push({ sender: 'agent', text: text });
+      renderChatUI();
+
+      // Trigger simulated automated customer reply after delay
+      setTimeout(() => {
+        if (activeChatSession) {
+          activeChatSession.messages.push({ sender: 'customer', text: 'Thank you! That makes total sense.' });
+          renderChatUI();
+        }
+      }, 1500);
+    }
+
+    /**
+     * =========================================================================
+     * 5. SYSTEM WORKFLOW CONTROLLER
+     * =========================================================================
+     */
+
+    // Submit new customer ticket (ENQUEUE Operation)
+    function handleEnqueueSubmittedTicket(customerName, category, issue) {
+      const ticket = {
+        id: `TICK-${ticketCounter++}`,
+        customerName,
+        category,
+        issue,
+        timestamp: new Date()
+      };
+
+      // ENQUEUE OPERATION (Adds to rear of Queue)
+      ticketQueue.enqueue(ticket);
+      soundEffects.playEnqueue();
+
+      renderQueue();
+      renderAgents();
+    }
+
+    // Agent calls next customer in line (DEQUEUE Operation)
+    function handleAgentTakeNext(agentId) {
+      const agent = agents.find(a => a.id === agentId);
+      if (!agent || agent.status === 'Busy') return;
+
+      if (ticketQueue.isEmpty()) return;
+
+      // DEQUEUE OPERATION (Removes and returns front customer)
+      const ticket = ticketQueue.dequeue();
+      soundEffects.playConnect();
+
+      // Update Agent state
+      agent.status = 'Busy';
+      agent.currentTicket = ticket;
+
+      // Create Active Chat Session
+      focusChatSession(agentId);
+
+      renderQueue();
+      renderAgents();
+    }
+
+    // Resolve current active chat and free agent
+    function handleResolveActiveChat() {
+      if (!activeChatSession) return;
+
+      const agent = agents.find(a => a.id === activeChatSession.agentId);
+      if (agent) {
+        agent.status = 'Available';
+        agent.currentTicket = null;
+      }
+
+      totalResolvedToday++;
+      activeChatSession = null;
+
+      renderQueue();
+      renderAgents();
+      renderChatUI();
+    }
+
+    /**
+     * =========================================================================
+     * 6. INITIALIZATION & EVENT HANDLERS
+     * =========================================================================
+     */
+    document.addEventListener('DOMContentLoaded', () => {
+
+      // Seed Queue with Initial Demonstration Customer Tickets
+      handleEnqueueSubmittedTicket('Sarah Jenkins', 'Technical Support', 'Cannot reset password via email link');
+      handleEnqueueSubmittedTicket('Alex Rivera', 'Billing & Invoices', 'Overcharged on annual subscription renewal');
+      handleEnqueueSubmittedTicket('Maya Patel', 'Emergency Priority', 'API gateway returning 500 error codes');
+
+      // Submit Form Event Handler
+      document.getElementById('submit-ticket-form').addEventListener('submit', (e) => {
+        e.preventDefault();
+        const name = document.getElementById('input-customer-name').value.trim();
+        const cat = document.getElementById('input-category').value;
+        const issue = document.getElementById('input-issue').value.trim();
+
+        if (name && issue) {
+          handleEnqueueSubmittedTicket(name, cat, issue);
+          document.getElementById('input-customer-name').value = '';
+          document.getElementById('input-issue').value = '';
+        }
+      });
+
+      // Auto-Simulate Random Ticket Generator Button
+      document.getElementById('btn-auto-simulate').addEventListener('click', () => {
+        const randomName = sampleNames[Math.floor(Math.random() * sampleNames.length)];
+        const sample = sampleCategories[Math.floor(Math.random() * sampleCategories.length)];
+        handleEnqueueSubmittedTicket(randomName, sample.cat, sample.issue);
+      });
+
+      // Active Chat Send Message Form
+      document.getElementById('chat-input-form').addEventListener('submit', (e) => {
+        e.preventDefault();
+        const input = document.getElementById('chat-input-field');
+        const text = input.value.trim();
+
+        if (text && activeChatSession) {
+          activeChatSession.messages.push({ sender: 'agent', text: text });
+          input.value = '';
+          renderChatUI();
+        }
+      });
+
+      // Resolve Chat Button Handler
+      document.getElementById('btn-resolve-chat').addEventListener('click', () => {
+        handleResolveActiveChat();
+      });
+
+      // Modal Open/Close Event Listeners
+      const modal = document.getElementById('ds-modal');
+      document.getElementById('btn-open-ds-modal').addEventListener('click', () => {
+        renderDSModalBuffer();
+        modal.classList.remove('hidden');
+      });
+
+      document.getElementById('btn-close-ds-modal').addEventListener('click', () => {
+        modal.classList.add('hidden');
+      });
+
+      modal.addEventListener('click', (e) => {
+        if (e.target === modal) {
+          modal.classList.add('hidden');
+        }
+      });
+
+    });
+  </script>
+</body>
+</html>
